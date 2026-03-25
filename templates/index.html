@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rupeek Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/rupeek%20logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root { --bg: #f8fafc; --surface: #ffffff; --surface-hover: #f1f5f9; --primary: #f05a28; --primary-hover: #d94b1f; --secondary: #0f172a; --secondary-hover: #1e293b; --warning: #f59e0b; --warning-hover: #d97706; --text-main: #0f172a; --text-muted: #64748b; --border: #e2e8f0; --danger: #ef4444; --danger-bg: #fef2f2; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, transparent 70%); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        .navbar { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.05); padding: 1rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; }
+        .container { flex: 1; padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .tabs { display: flex; background: var(--surface); padding: 0.5rem; border-radius: 12px; box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05); margin-bottom: 2rem; gap: 0.25rem; border: 1px solid var(--border); overflow-x: auto; }
+        .tab-btn { background: transparent; color: var(--text-muted); border: none; padding: 0.75rem 1.25rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+        .tab-btn:hover { color: var(--secondary); background: #f1f5f9; }
+        .tab-btn.active { color: white; background: var(--secondary); box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .query-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 2rem; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05); margin-bottom: 2rem; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .query-panel h2 { font-size: 1.25rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); color: var(--secondary); font-weight: 700; letter-spacing: -0.02em; }
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        input[type="text"], select { width: 100%; padding: 0.75rem 1rem; background: #f8fafc; border: 2px solid transparent; border-radius: 8px; color: var(--text-main); font-size: 0.95rem; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+        select { appearance: none; cursor: pointer; }
+        input[type="text"]:focus, select:focus { outline: none; background: #ffffff; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(240, 90, 40, 0.1); }
+        form button { background: linear-gradient(135deg, var(--primary), #e84610); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; width: fit-content; box-shadow: 0 4px 15px rgba(240, 90, 40, 0.3); text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        form button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(240, 90, 40, 0.4); }
+        form button:disabled { background: var(--border) !important; color: var(--text-muted) !important; cursor: not-allowed; transform: none; box-shadow: none !important; }
+        .btn-download { background: #10b981; color: white; border: none; border-radius: 8px; padding: 0.6rem 1.25rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2); }
+        .btn-download:hover { background: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transform: translateY(-1px); }
+        .error-message { background: var(--danger-bg); color: var(--danger); padding: 1rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2); margin-top: 1.25rem; display: none; font-weight: 500; font-size: 0.9rem; }
+        .results-container { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: none; box-shadow: 0 5px 20px -5px rgba(0,0,0,0.05); margin-top: 1.5rem; }
+        .results-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #ffffff; }
+        .results-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--secondary); letter-spacing: -0.01em; }
+        .table-responsive { overflow-x: auto; max-height: 60vh; overflow-y: auto; position: relative; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); padding: 0.75rem 1rem; font-weight: 700; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; position: sticky; top: 0; z-index: 10; white-space: nowrap; border-bottom: 1px solid var(--border); }
+        td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; white-space: nowrap; color: var(--secondary); font-weight: 500; }
+        tbody tr { transition: background-color 0.2s; }
+
+        /* GOLD REG GRID STYLES */
+        .gold-grid-item { display: flex; font-size: 0.85rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--border); }
+        .gold-label { font-weight: 700; color: var(--text-muted); width: 140px; flex-shrink: 0; }
+        .gold-colon { margin-right: 0.75rem; color: var(--text-muted); font-weight: 700; }
+        .gold-value { font-weight: 700; color: var(--text-main); flex-grow: 1; text-transform: uppercase; }
+        
+        /* LOAN DETAILS TAB SPECIFIC OVERRIDES */
+        #tab-loan { max-width: 1200px; margin: 0 auto; }
+        #tab-loan .query-panel { max-width: 850px; margin: 0 auto 1.5rem auto; padding: 1rem 1.25rem; border-radius: 10px; box-shadow: 0 5px 20px -10px rgba(0,0,0,0.05); }
+        #tab-loan .query-panel h2 { font-size: 1rem; margin-bottom: 1rem; padding-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em; }
+        #tab-loan .form-group { margin-bottom: 1rem; }
+        #tab-loan label { font-size: 0.75rem; margin-bottom: 0.25rem; }
+        #tab-loan input[type="text"], #tab-loan select { padding: 0.5rem 0.75rem; font-size: 0.85rem; border-radius: 6px; }
+        #tab-loan form button { padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 6px; }
+        #tab-loan .results-container { margin-top: 1rem; border-radius: 10px; box-shadow: 0 4px 15px -5px rgba(0,0,0,0.05); }
+        #tab-loan .results-header { padding: 0.75rem 1.25rem; }
+        #tab-loan .results-header h2 { font-size: 1rem; }
+        #tab-loan th { padding: 0.5rem 0.75rem; font-size: 0.65rem; }
+        #tab-loan td { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+        tbody tr:hover { background: var(--surface-hover); }
+        tr.highlight-row { background-color: #fffbeb !important; }
+        tr.highlight-row td { color: #d97706; font-weight: 700; }
+        tr.row-mis { background-color: #f0f9ff !important; }
+        tr.row-mis td { color: #0369a1; font-weight: 700; }
+        tr.row-ir-repayment { background-color: #f0fdf4 !important; }
+        tr.row-ir-repayment td { color: #15803d; font-weight: 700; }
+        .spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .vpn-note { margin-top: 0.75rem; font-size: 0.875rem; color: var(--warning); display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <img src="/static/logo.png" alt="Rupeek Logo" style="height: 52px; width: auto; object-fit: contain;">
+            <span style="font-size: 1.4rem; font-weight: 600; color: var(--secondary); margin-left: 0.25rem; padding-left: 1rem; border-left: 1.5px solid var(--border);">Dashboard</span>
+        </div>
+        <div style="font-size: 0.875rem; color: var(--text-muted); font-weight: 500;">
+            Connected to: <strong id="env-host" style="color: var(--secondary);">{{ host }}</strong>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Tabs Nav -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('loan', this)">Loan Details</button>
+            <button class="tab-btn" onclick="switchTab('daybook', this)">Daybook</button>
+            <button class="tab-btn" onclick="switchTab('mapping', this)">Mapping</button>
+            <button class="tab-btn" onclick="switchTab('crv', this)">CRV Data</button>
+            <button class="tab-btn" onclick="switchTab('charges', this)">Charges</button>
+            <button class="tab-btn" onclick="switchTab('repayment', this)">Repayment</button>
+            <button class="tab-btn" onclick="switchTab('lenders', this)">Lender Reference</button>
+        </div>
+
+        <!-- ============================== LOAN DETAILS TAB ============================== -->
+        <div id="tab-loan" class="tab-content active">
+            <div style="display: flex; gap: 1.5rem; align-items: stretch; margin-bottom: 1.5rem;">
+                <!-- Left Query Panel -->
+                <section class="query-panel" style="flex: 1; margin: 0; display: flex; flex-direction: column;">
+                    <h2>CLM Loan Details Query</h2>
+                    <form id="loan-form" style="display: flex; flex-direction: column; flex: 1;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="loan-type">Account Type</label>
+                            <select id="loan-type" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-main); font-size: 0.9rem; font-weight: 500; appearance: none; -webkit-appearance: none;">
+                                <option value="lender">Lender Loan Account No</option>
+                                <option value="rcpl">RCPL Loan Account No</option>
+                            </select>
+                            <label for="loan-input" style="margin-top: 1rem;">Account Number</label>
+                            <input type="text" id="loan-input" placeholder="e.g. 0042663000000010" required autocomplete="off">
+                        </div>
+                        <button type="submit" id="loan-btn" style="margin-top: auto;">
+                            <span>Run Loan Query</span>
+                            <div class="spinner" id="loan-spinner"></div>
+                        </button>
+                        <div class="error-message" id="loan-error"></div>
+                    </form>
+                </section>
+
+                <!-- Right Query Panel -->
+                <section class="query-panel" style="flex: 1; margin: 0; display: flex; flex-direction: column;">
+                    <h2>Gold Registration Query</h2>
+                    <form id="gold-form" style="display: flex; flex-direction: column; flex: 1;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="gold-input">GL Number</label>
+                            <input type="text" id="gold-input" placeholder="e.g. 1040262601668" required autocomplete="off">
+                        </div>
+                        <button type="submit" id="gold-btn" style="margin-top: auto;">
+                            <span>Run Gold Reg Query</span>
+                            <div class="spinner" id="gold-spinner"></div>
+                        </button>
+                        <div class="error-message" id="gold-error"></div>
+                    </form>
+                </section>
+            </div>
+            
+            <div id="loan-cards-layout" style="display: flex; gap: 1.5rem; align-items: flex-start;">
+                <!-- Left Card: Core Loan Details -->
+                <section class="results-container" id="res-container-loan" style="flex: 1; margin-top: 0;">
+                    <div class="results-header">
+                        <h2 id="res-title-loan">Loan Details</h2>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <span id="res-count-loan" style="color: var(--text-muted); font-size: 0.875rem;"></span>
+                            <button type="button" onclick="downloadExcel('res-table-loan', 'res-title-loan')" class="btn-download">Download Excel</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="res-table-loan">
+                            <thead id="res-head-loan"></thead>
+                            <tbody id="res-body-loan"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Right Card: Gold Reg Section -->
+                <section class="results-container" id="res-container-gold" style="flex: 1; display: none; padding: 0; background: #ffffff; border-radius: 10px; box-shadow: 0 4px 15px -5px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-top: 0;">
+                    <div class="results-header">
+                        <h2 id="res-title-gold">Gold Registration Data</h2>
+                    </div>
+                    <div id="gold-reg-grid" style="display: flex; flex-direction: column; padding: 1rem 1.25rem;">
+                        <!-- JS injects here -->
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ============================== DAYBOOK TAB ============================== -->
+        <div id="tab-daybook" class="tab-content">
+            <section class="query-panel">
+                <h2>Daybook Query Analysis</h2>
+                <form id="daybook-form" style="display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label for="gl-input">GL Number(s)</label>
+                        <input type="text" id="gl-input" placeholder="e.g. 1040512503914, 1050042300002" required autocomplete="off">
+                        <div class="vpn-note">Note: Daybook queries may take a while as they scan the entire table.</div>
+                    </div>
+                    
+                    <button type="submit" id="daybook-btn">
+                        <span>Run Daybook</span>
+                        <div class="spinner" id="daybook-spinner"></div>
+                    </button>
+                    <div class="error-message" id="daybook-error"></div>
+                </form>
+            </section>
+
+            <section class="results-container" id="res-container-daybook">
+                <div class="results-header">
+                    <h2 id="res-title-daybook">Query Results</h2>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="res-count-daybook" style="color: var(--text-muted); font-size: 0.875rem;"></span>
+                        <button type="button" onclick="downloadExcel('res-table-daybook', 'res-title-daybook')" class="btn-download">Download Excel</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="res-table-daybook">
+                        <thead id="res-head-daybook"></thead>
+                        <tbody id="res-body-daybook"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================== MAPPING TAB ============================== -->
+        <div id="tab-mapping" class="tab-content">
+            <section class="query-panel">
+                <h2>Mapping Lookup</h2>
+                <form id="mapping-form" style="display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label for="mapping-field">Filter Field</label>
+                        <select id="mapping-field">
+                            <option value="id">ID</option>
+                            <option value="losid">LOSID</option>
+                            <option value="gl" selected>GL</option>
+                            <option value="referencenumber">Reference Number</option>
+                            <option value="requesterid">Requester ID</option>
+                        </select>
+                        <label for="mapping-input">Search Value</label>
+                        <input type="text" id="mapping-input" placeholder="Enter value to search..." required autocomplete="off">
+                    </div>
+                    <button type="submit" id="mapping-btn">
+                        <span>Run Mapping</span>
+                        <div class="spinner" id="mapping-spinner"></div>
+                    </button>
+                    <div class="error-message" id="mapping-error"></div>
+                </form>
+            </section>
+            
+            <section class="results-container" id="res-container-mapping">
+                <div class="results-header">
+                    <h2 id="res-title-mapping">Query Results</h2>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="res-count-mapping" style="color: var(--text-muted); font-size: 0.875rem;"></span>
+                        <button type="button" onclick="downloadExcel('res-table-mapping', 'res-title-mapping')" class="btn-download">Download Excel</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="res-table-mapping">
+                        <thead id="res-head-mapping"></thead>
+                        <tbody id="res-body-mapping"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================== CRV TAB ============================== -->
+        <div id="tab-crv" class="tab-content">
+            <section class="query-panel">
+                <h2>Customer Rupeek View (CRV)</h2>
+                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem; margin-top: -1rem;">
+                    <em>Note: To open CRV for CLM cases, you need to enter the lender loan account number.</em>
+                </p>
+                <form id="crv-form" style="display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label for="crv-input">LMS ID</label>
+                        <input type="text" id="crv-input" placeholder="e.g. 1060502601573" required autocomplete="off">
+                    </div>
+                    <button type="submit" id="crv-btn">
+                        <span>Run CRV Data</span>
+                        <div class="spinner" id="crv-spinner"></div>
+                    </button>
+                    <div class="error-message" id="crv-error"></div>
+                </form>
+            </section>
+            
+            <section class="results-container" id="res-container-crv">
+                <div class="results-header">
+                    <h2 id="res-title-crv">Query Results</h2>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="res-count-crv" style="color: var(--text-muted); font-size: 0.875rem;"></span>
+                        <button type="button" onclick="downloadExcel('res-table-crv', 'res-title-crv')" class="btn-download">Download Excel</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="res-table-crv">
+                        <thead id="res-head-crv"></thead>
+                        <tbody id="res-body-crv"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================== CHARGES TAB ============================== -->
+        <div id="tab-charges" class="tab-content">
+            <section class="query-panel">
+                <h2>Charges Query</h2>
+                <form id="charges-form" style="display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label for="charges-input">LMS ID</label>
+                        <input type="text" id="charges-input" placeholder="e.g. 1050932601448" required autocomplete="off">
+                    </div>
+                    <button type="submit" id="charges-btn">
+                        <span>Run Charges Query</span>
+                        <div class="spinner" id="charges-spinner"></div>
+                    </button>
+                    <div class="error-message" id="charges-error"></div>
+                </form>
+            </section>
+            
+            <section class="results-container" id="res-container-charges">
+                <div class="results-header">
+                    <h2 id="res-title-charges">Query Results</h2>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="res-count-charges" style="color: var(--text-muted); font-size: 0.875rem;"></span>
+                        <button type="button" onclick="downloadExcel('res-table-charges', 'res-title-charges')" class="btn-download">Download Excel</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="res-table-charges">
+                        <thead id="res-head-charges"></thead>
+                        <tbody id="res-body-charges"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================== REPAYMENT TAB ============================== -->
+        <div id="tab-repayment" class="tab-content">
+            <section class="query-panel">
+                <h2>Repayment Query</h2>
+                <form id="repayment-form" style="display: flex; flex-direction: column;">
+                    <div class="form-group">
+                        <label for="repayment-input">LMS ID</label>
+                        <input type="text" id="repayment-input" placeholder="e.g. 0009663000000003" required autocomplete="off">
+                    </div>
+                    <button type="submit" id="repayment-btn">
+                        <span>Run Repayment Query</span>
+                        <div class="spinner" id="repayment-spinner"></div>
+                    </button>
+                    <div class="error-message" id="repayment-error"></div>
+                </form>
+            </section>
+            
+            <section class="results-container" id="res-container-repayment">
+                <div class="results-header">
+                    <h2 id="res-title-repayment">Repayment Data</h2>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="res-count-repayment" style="color: var(--text-muted); font-size: 0.875rem;"></span>
+                        <button type="button" onclick="downloadExcel('res-table-repayment', 'res-title-repayment')" class="btn-download">Download Excel</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="res-table-repayment">
+                        <thead id="res-head-repayment"></thead>
+                        <tbody id="res-body-repayment"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================== LENDERS TAB (STATIC) ============================== -->
+        <div id="tab-lenders" class="tab-content">
+            <section class="query-panel" style="padding: 0; overflow: hidden; border: none; background: transparent; box-shadow: none;">
+                <div class="results-container" style="display: block; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-top: 0;">
+                    <div class="results-header">
+                        <h2>Lender ID Reference</h2>
+                        <span style="color: var(--text-muted); font-size: 0.875rem;">11 Lenders</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Lender Name</th>
+                                    <th>Core ID</th>
+                                    <th>Slug</th>
+                                    <th>Gold Benchmark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Axis</td><td>62be94b2beb2db743c17bc4c</td><td>axis</td><td>AXIS</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Federal Bank Limited</td><td>5a43cfbebc40a39a3bc1207d</td><td>federal</td><td>IBJA</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">ICICI Bank</td><td>5d75924e5bf87df5130767ae</td><td>icici-bank</td><td>ICICI</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Indian Bank</td><td>635a0b977762f40fc068fe03</td><td>indianbank</td><td>INDIANBANK</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Karur Vysya Bank</td><td>5cdd3ebad54a11e613c3a6b5</td><td>kvb</td><td>KVB</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Kisetsu Saison Finance India Private Limited</td><td>5f916dab9617a826bd84a9f3</td><td>saison</td><td>AGLOC</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">NDX P2P Private Limited</td><td>637de2591a0aab715655885b</td><td>liquiloans</td><td>AGLOC</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Rupeek Capital Private Limited</td><td>5ac38436aa1a12f3691dbf99</td><td>rupeek</td><td>AGLOC</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">South Indian Bank</td><td>60b7f0e0cbe7401f71ffcbda</td><td>sib</td><td>IBJA</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Yogakshemam Loans Limited</td><td>57288d5c3e2291476b2a0a4e</td><td>yog</td><td>AGLOC</td></tr>
+                                <tr><td style="color: var(--text-main); font-weight: 500;">Cholamandalam Investment and Finance Company Limited</td><td>63e340d634c9599729eb97d7</td><td>cholamandalam</td><td>AGLOC</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Tab Switching Logic
+        function switchTab(tabId, btnElement) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            // Remove active state from all buttons
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Show new tab
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            btnElement.classList.add('active');
+        }
+
+        // Reusable Execute Query function
+        async function executeQuery(url, payload, btn, spinner, errorMsg, title, tabPrefix, renderVertical = false) {
+            const container = document.getElementById(`res-container-${tabPrefix}`);
+            const titleEl = document.getElementById(`res-title-${tabPrefix}`);
+            const thead = document.getElementById(`res-head-${tabPrefix}`);
+            const tbody = document.getElementById(`res-body-${tabPrefix}`);
+            const countEl = document.getElementById(`res-count-${tabPrefix}`);
+            const goldContainer = document.getElementById('res-container-loan-gold');
+
+            // Reset state
+            if (btn) btn.disabled = true;
+            if (spinner) spinner.style.display = 'block';
+            errorMsg.style.display = 'none';
+            container.style.display = 'none';
+            if (goldContainer) goldContainer.style.display = 'none';
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to execute query');
+                }
+
+                if (data.results.length === 0) {
+                    errorMsg.textContent = 'No results found.';
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+
+                titleEl.textContent = title;
+
+                if (renderVertical) {
+                    // Transpose Table Rendering
+                    const headerRow = document.createElement('tr');
+                    const th1 = document.createElement('th');
+                    th1.textContent = 'FIELD FORMAT';
+                    headerRow.appendChild(th1);
+
+                    data.results.forEach((row, i) => {
+                        const th = document.createElement('th');
+                        th.textContent = data.results.length > 1 ? `RECORD ${i+1}` : 'VALUE';
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+
+                    data.columns.forEach((col, colIndex) => {
+                        const tr = document.createElement('tr');
+                        
+                        // Row Header
+                        const tdLabel = document.createElement('td');
+                        tdLabel.style.fontWeight = '700';
+                        tdLabel.style.color = 'var(--secondary)';
+                        tdLabel.style.backgroundColor = '#f8fafc';
+                        tdLabel.style.borderRight = '1px solid var(--border)';
+                        tdLabel.style.width = '200px';
+                        tdLabel.textContent = col;
+                        tr.appendChild(tdLabel);
+
+                        // Row Values
+                        data.results.forEach(row => {
+                            const tdVal = document.createElement('td');
+                            tdVal.textContent = row[colIndex] !== null ? row[colIndex] : 'NULL';
+                            tr.appendChild(tdVal);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    // Normal Horizontal Rendering
+                    // Render Table Headers
+                    const headerRow = document.createElement('tr');
+                    data.columns.forEach(col => {
+                        const th = document.createElement('th');
+                        th.textContent = col;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+
+                    // Find index of outstanding_amount for conditional formatting
+                    const outAmtIdx = data.columns.findIndex(c => c.toLowerCase() === 'outstanding_amount');
+                    const eventTypeIdx = data.columns.findIndex(c => c.toLowerCase() === 'event_type');
+                    let previousOutstanding = null;
+
+                    // Render Table Rows
+                    data.results.forEach((row, index) => {
+                        const tr = document.createElement('tr');
+                        
+                        if (outAmtIdx !== -1) {
+                            const currentOutstanding = row[outAmtIdx];
+                            if (index > 0 && currentOutstanding !== previousOutstanding) {
+                                tr.classList.add('highlight-row');
+                            }
+                            previousOutstanding = currentOutstanding;
+                        }
+
+                        if (eventTypeIdx !== -1 && row[eventTypeIdx]) {
+                            const eventType = row[eventTypeIdx].toString().toLowerCase().trim();
+                            if (eventType === 'mis') {
+                                tr.classList.add('row-mis');
+                            } else if (eventType === 'ir_repayment' || eventType === 'ir repayment') {
+                                tr.classList.add('row-ir-repayment');
+                            }
+                        }
+
+                        row.forEach(cell => {
+                            const td = document.createElement('td');
+                            td.textContent = cell !== null ? cell : 'NULL';
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                countEl.textContent = `${data.results.length} row(s) returned`;
+                container.style.display = 'block';
+
+            } catch (err) {
+                errorMsg.innerHTML = `<strong>Error:</strong> ${err.message}`;
+                errorMsg.style.display = 'block';
+            } finally {
+                if (btn) btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+            }
+        }
+
+        // Excel Download Logic
+        function downloadExcel(tableId, titleId) {
+            const table = document.getElementById(tableId);
+            const title = document.getElementById(titleId).textContent.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'results';
+            
+            // Re-construct the table in a clone to properly wrap th elements in a tr 
+            // incase they aren't, ensuring SheetJS captures headers.
+            const clonedTable = table.cloneNode(true);
+            const thead = clonedTable.querySelector('thead');
+            if (thead) {
+                const tr = thead.querySelector('tr');
+                if (!tr) {
+                    const newTr = document.createElement('tr');
+                    while (thead.firstChild) {
+                        newTr.appendChild(thead.firstChild);
+                    }
+                    thead.appendChild(newTr);
+                }
+            }
+            
+            const wb = XLSX.utils.table_to_book(clonedTable, { sheet: "Results" });
+            XLSX.writeFile(wb, `${title}.xlsx`);
+        }
+
+        // Form 0: Gold Reg Form (Side-by-side)
+        document.getElementById('gold-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const value = document.getElementById('gold-input').value;
+            const btn = document.getElementById('gold-btn');
+            const spinner = document.getElementById('gold-spinner');
+            const errorMsg = document.getElementById('gold-error');
+            const container = document.getElementById('res-container-gold');
+            const goldGrid = document.getElementById('gold-reg-grid');
+            
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            errorMsg.style.display = 'none';
+            container.style.display = 'none';
+            goldGrid.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/gold_reg', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gl_no: value })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to execute Gold query');
+                }
+
+                if ((!data.secured_results || data.secured_results.length === 0) && (!data.unsecured_results || data.unsecured_results.length === 0)) {
+                    errorMsg.textContent = 'No records found for this GL Number.';
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+
+                const renderSection = (title, cols, results) => {
+                    if (!results || results.length === 0) return;
+                    
+                    const titleEl = document.createElement('h3');
+                    titleEl.textContent = title;
+                    titleEl.style.fontSize = '1rem';
+                    titleEl.style.fontWeight = '700';
+                    titleEl.style.color = 'var(--primary)';
+                    titleEl.style.marginBottom = '0.5rem';
+                    titleEl.style.paddingTop = goldGrid.children.length > 0 ? '1.5rem' : '0';
+                    titleEl.style.borderTop = goldGrid.children.length > 0 ? '1px dashed var(--border)' : 'none';
+                    if (goldGrid.children.length > 0) titleEl.style.marginTop = '0.5rem';
+                    goldGrid.appendChild(titleEl);
+
+                    cols.forEach((col, idx) => {
+                        const val = results[0][idx] !== null ? results[0][idx] : '-';
+                        const formattedLabel = col.split('_').join(' ').toLowerCase();
+                        const isLp = col.toLowerCase() === 'lploanid';
+                        
+                        let displayVal = val;
+                        if (typeof val === 'string' && (val.trim().startsWith('{') || val.trim().startsWith('['))) {
+                            try {
+                                const parsed = JSON.parse(val);
+                                displayVal = `<pre style="margin: 0; white-space: pre-wrap; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.8rem; background: var(--surface); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border); color: var(--text-main); font-weight: 500; line-height: 1.5;">${JSON.stringify(parsed, null, 2)}</pre>`;
+                            } catch (e) {}
+                        }
+                        
+                        const valStyle = isLp 
+                            ? 'font-weight: 800; color: var(--primary); text-transform: none; word-break: break-word; overflow-wrap: anywhere; line-height: 1.4; font-size: 0.95rem;' 
+                            : 'font-weight: 500; text-transform: none; word-break: break-word; overflow-wrap: anywhere; line-height: 1.4;';
+                        
+                        const item = document.createElement('div');
+                        item.className = 'gold-grid-item';
+                        // align-items flex-start so the label aligns to the top of the JSON block
+                        item.style.alignItems = 'flex-start';
+                        item.innerHTML = `
+                            <div class="gold-label" style="margin-top: 0.2rem;">${formattedLabel}</div>
+                            <div class="gold-colon" style="margin-top: 0.2rem;">:</div>
+                            <div class="gold-value" style="${valStyle}">${displayVal}</div>
+                        `;
+                        goldGrid.appendChild(item);
+                    });
+                };
+
+                renderSection('Secured Loan', data.secured_columns, data.secured_results);
+                renderSection('Unsecured Loan', data.unsecured_columns, data.unsecured_results);
+                
+                container.style.display = 'block';
+
+            } catch (err) {
+                errorMsg.innerHTML = `<strong>Error:</strong> ${err.message}`;
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        });
+
+        // Form 1: Daybook Submission
+        document.getElementById('daybook-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const value = document.getElementById('gl-input').value;
+            executeQuery('/api/query', { gl_numbers: value }, 
+                         document.getElementById('daybook-btn'),
+                         document.getElementById('daybook-spinner'),
+                         document.getElementById('daybook-error'),
+                         `Daybook Results`,
+                         'daybook');
+        });
+
+        // Form 2: Mapping Submission
+        document.getElementById('mapping-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const field = document.getElementById('mapping-field').value;
+            const value = document.getElementById('mapping-input').value;
+            executeQuery('/api/mapping', { field: field, value: value }, 
+                         document.getElementById('mapping-btn'),
+                         document.getElementById('mapping-spinner'),
+                         document.getElementById('mapping-error'),
+                         `Temp Mapping Results (${field} = ${value})`,
+                         'mapping');
+        });
+
+        // Form 3: CRV Submission
+        document.getElementById('crv-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const value = document.getElementById('crv-input').value;
+            executeQuery('/api/crv', { lms_id: value }, 
+                         document.getElementById('crv-btn'),
+                         document.getElementById('crv-spinner'),
+                         document.getElementById('crv-error'),
+                         `CRV Data (LMS ID: ${value})`,
+                         'crv');
+        });
+
+        // Form 4: Loan Details Submission
+        document.getElementById('loan-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const type = document.getElementById('loan-type').value;
+            const value = document.getElementById('loan-input').value;
+            const typeName = type === 'lender' ? 'Lender Account' : 'RCPL Account';
+            
+            executeQuery('/api/loan', { account_type: type, account_no: value }, 
+                         document.getElementById('loan-btn'),
+                         document.getElementById('loan-spinner'),
+                         document.getElementById('loan-error'),
+                         `Loan Details (${typeName}: ${value})`,
+                         'loan',
+                         true);
+        });
+
+        // Form 5: Charges Submission
+        document.getElementById('charges-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const value = document.getElementById('charges-input').value;
+            executeQuery('/api/charges', { lms_id: value }, 
+                         document.getElementById('charges-btn'),
+                         document.getElementById('charges-spinner'),
+                         document.getElementById('charges-error'),
+                         `Charges Data (LMS ID: ${value})`,
+                         'charges');
+        });
+
+        // Form 6: Repayment Submission
+        document.getElementById('repayment-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const value = document.getElementById('repayment-input').value;
+            executeQuery('/api/repayment', { lms_id: value }, 
+                         document.getElementById('repayment-btn'),
+                         document.getElementById('repayment-spinner'),
+                         document.getElementById('repayment-error'),
+                         `Repayment Data (LMS ID: ${value})`,
+                         'repayment');
+        });
+    </script>
+</body>
+</html>
