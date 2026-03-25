@@ -21,6 +21,7 @@ def get_redshift_connection():
         password=os.environ.get('REDSHIFT_PASSWORD', '')
     )
 
+#approutes
 @app.route('/')
 def index():
     host = os.environ.get('REDSHIFT_HOST', 'Unknown Host')
